@@ -69,6 +69,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     try {
       await mockApi.auth.logout();
       localStorage.removeItem('token');
+      localStorage.removeItem('mock_user_id');
       set({
         user: null,
         token: null,
@@ -82,7 +83,10 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   checkAuth: async () => {
     const token = localStorage.getItem('token');
-    if (!token) {
+    const userId = localStorage.getItem('mock_user_id');
+    if (!token || !userId) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('mock_user_id');
       set({ user: null, token: null });
       return;
     }
@@ -94,10 +98,12 @@ export const useUserStore = create<UserState>((set, get) => ({
         set({ user, token, permissions: ['view', 'edit', 'approve'], loading: false });
       } else {
         localStorage.removeItem('token');
+        localStorage.removeItem('mock_user_id');
         set({ user: null, token: null, loading: false });
       }
     } catch (error) {
       localStorage.removeItem('token');
+      localStorage.removeItem('mock_user_id');
       set({ user: null, token: null, loading: false });
     }
   },
@@ -129,7 +135,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   updateUser: async (data: UpdateUserRequest) => {
     set({ loading: true });
     try {
-      const user = await mockApi.user.updateUser(data.id, data);
+      const user = await mockApi.user.updateUser(data);
       set((state) => ({
         users: state.users.map((u) => (u.id === data.id ? user : u)),
         loading: false,

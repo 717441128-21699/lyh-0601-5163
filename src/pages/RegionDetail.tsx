@@ -185,7 +185,7 @@ const RegionDetail: React.FC = () => {
         const indicator = regionIndicators.find((i) => i.regionId === city.id);
         return {
           name: city.name,
-          value: indicator ? indicator.overexploitationRate * 100 : Math.random() * 40,
+          value: indicator ? indicator.overexploitationRate : Math.random() * 40,
         };
       })
       .sort((a, b) => b.value - a.value)
@@ -328,15 +328,15 @@ const RegionDetail: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <StatCard
             title="超采率"
-            value={(regionIndicator.overexploitationRate * 100).toFixed(1)}
+            value={regionIndicator.overexploitationRate.toFixed(1)}
             unit="%"
-            trend={regionIndicator.overexploitationRate > 0.15 ? 'up' : 'stable'}
-            trendValue={regionIndicator.overexploitationRate > 0.15 ? '高于警戒值' : '正常范围'}
+            trend={regionIndicator.overexploitationRate > 15 ? 'up' : 'stable'}
+            trendValue={regionIndicator.overexploitationRate > 15 ? '高于警戒值' : '正常范围'}
             icon={<Droplets className="w-5 h-5" />}
             color={
-              regionIndicator.overexploitationRate > 0.3
+              regionIndicator.overexploitationRate > 30
                 ? 'danger'
-                : regionIndicator.overexploitationRate > 0.15
+                : regionIndicator.overexploitationRate > 15
                 ? 'warning'
                 : 'success'
             }
@@ -426,7 +426,7 @@ const RegionDetail: React.FC = () => {
                 {regionIndicator && (
                   <>
                     <GaugeChart
-                      value={regionIndicator.overexploitationRate * 100}
+                      value={regionIndicator.overexploitationRate}
                       max={50}
                       unit="%"
                       title="超采率"

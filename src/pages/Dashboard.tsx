@@ -79,18 +79,24 @@ const Dashboard: React.FC = () => {
     loadData();
   }, [selectedTimeRange, selectedProvince, loadProvinces, loadNationalIndicators, loadMonitoringWells, loadGNSSPoints, loadWarnings]);
 
+  const filteredIndicators = useMemo(() => {
+    let result = regionIndicators.filter((i) => i.regionType === 'province');
+    if (!isNational && dataScope.provinceIds.length > 0) {
+      result = result.filter((i) => dataScope.provinceIds.includes(i.regionId));
+    }
+    return result;
+  }, [regionIndicators, isNational, dataScope]);
+
   const mapData = useMemo(() => {
-    return regionIndicators
-      .filter((i) => i.regionType === 'province')
+    return filteredIndicators
       .map((i) => ({
         name: provinces.find((p) => p.id === i.regionId)?.name || '',
-        value: i.overexploitationRate * 100,
+        value: i.overexploitationRate,
       }));
-  }, [regionIndicators, provinces]);
+  }, [filteredIndicators, provinces]);
 
   const riskRankingData = useMemo(() => {
-    return [...regionIndicators]
-      .filter((i) => i.regionType === 'province')
+    return [...filteredIndicators]
       .sort((a, b) => b.subsidenceRate - a.subsidenceRate)
       .slice(0, 10)
       .map((i) => ({
@@ -105,7 +111,7 @@ const Dashboard: React.FC = () => {
               : '#10b981',
         },
       }));
-  }, [regionIndicators, provinces]);
+  }, [filteredIndicators, provinces]);
 
   const waterLevelTrendData = useMemo(() => {
     const dates = generateDateSeries(
@@ -142,7 +148,7 @@ const Dashboard: React.FC = () => {
   };
 
   const nationalStats = useMemo(() => {
-    const provinceIndicators = regionIndicators.filter((i) => i.regionType === 'province');
+    const provinceIndicators = filteredIndicators;
     const avgOverRate = provinceIndicators.length > 0
       ? provinceIndicators.reduce((sum, i) => sum + i.overexploitationRate, 0) / provinceIndicators.length
       : 0;
@@ -154,13 +160,13 @@ const Dashboard: React.FC = () => {
     const remaining = totalAllowable - totalActual;
 
     return {
-      avgOverRate: (avgOverRate * 100).toFixed(1),
+      avgOverRate: avgOverRate.toFixed(1),
       avgSubsidenceRate: avgSubsidenceRate.toFixed(2),
       remaining: (remaining / 100000000).toFixed(2),
       totalWells: monitoringWells.length,
       totalGNSS: gnssPoints.length,
     };
-  }, [regionIndicators, monitoringWells, gnssPoints]);
+  }, [filteredIndicators, monitoringWells, gnssPoints]);
 
   const provinceOptions = useMemo(() => {
     const filtered = dataScope.provinceIds

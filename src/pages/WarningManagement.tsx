@@ -39,7 +39,7 @@ import type { Warning, WarningStatus, WarningType } from '../types';
 const WarningManagement: React.FC = () => {
   const { warningId } = useParams<{ warningId?: string }>();
   const navigate = useNavigate();
-  const { canApproveStep, isStation, isProvincial, isNational } = usePermission();
+  const { canApproveStep, isStation, isProvincial, isNational, dataScope } = usePermission();
 
   const {
     warnings,
@@ -92,15 +92,32 @@ const WarningManagement: React.FC = () => {
   }, [showDetail, selectedWarning]);
 
   const filteredWarnings = useMemo(() => {
-    if (!searchKeyword) return warnings;
-    const keyword = searchKeyword.toLowerCase();
-    return warnings.filter(
-      (w) =>
-        w.regionName.toLowerCase().includes(keyword) ||
-        w.description.toLowerCase().includes(keyword) ||
-        w.warningNo.toLowerCase().includes(keyword)
-    );
-  }, [warnings, searchKeyword]);
+    let result = warnings;
+
+    if (!isNational && dataScope.provinceIds.length > 0) {
+      result = result.filter((w) => dataScope.provinceIds.includes(w.regionId));
+    }
+
+    if (statusFilter) {
+      result = result.filter((w) => w.status === statusFilter);
+    }
+
+    if (typeFilter) {
+      result = result.filter((w) => w.type === typeFilter);
+    }
+
+    if (searchKeyword) {
+      const keyword = searchKeyword.toLowerCase();
+      result = result.filter(
+        (w) =>
+          w.regionName.toLowerCase().includes(keyword) ||
+          w.description.toLowerCase().includes(keyword) ||
+          w.warningNo.toLowerCase().includes(keyword)
+      );
+    }
+
+    return result;
+  }, [warnings, searchKeyword, statusFilter, typeFilter, isNational, dataScope]);
 
   const handleViewDetail = async (warning: Warning) => {
     await loadWarningById(warning.id);
@@ -176,15 +193,15 @@ const WarningManagement: React.FC = () => {
   };
 
   const warningStats = useMemo(() => {
-    const pending = warnings.filter((w) => w.status === 'pending_confirm').length;
-    const confirmed = warnings.filter((w) => w.status === 'confirmed').length;
-    const reviewing = warnings.filter((w) => w.status === 'reviewing').length;
-    const approved = warnings.filter((w) => w.status === 'approved').length;
-    const waterLevel = warnings.filter((w) => w.type === 'water_level').length;
-    const subsidence = warnings.filter((w) => w.type === 'subsidence').length;
+    const pending = filteredWarnings.filter((w) => w.status === 'pending_confirm').length;
+    const confirmed = filteredWarnings.filter((w) => w.status === 'confirmed').length;
+    const reviewing = filteredWarnings.filter((w) => w.status === 'reviewing').length;
+    const approved = filteredWarnings.filter((w) => w.status === 'approved').length;
+    const waterLevel = filteredWarnings.filter((w) => w.type === 'water_level').length;
+    const subsidence = filteredWarnings.filter((w) => w.type === 'subsidence').length;
 
     return { pending, confirmed, reviewing, approved, waterLevel, subsidence };
-  }, [warnings]);
+  }, [filteredWarnings]);
 
   const statusOptions = [
     { value: '', label: '全部状态' },

@@ -20,9 +20,9 @@ import type {
   HydrogeologyParams,
 } from '../../types';
 
-const generateId = (): string => Math.random().toString(36).substring(2, 11);
+export const generateId = (): string => Math.random().toString(36).substring(2, 11);
 
-const provincesData: { id: string; name: string; code: string; lng: number; lat: number }[] = [
+export const provincesData: { id: string; name: string; code: string; lng: number; lat: number }[] = [
   { id: '110000', name: '北京市', code: 'BJ', lng: 116.4074, lat: 39.9042 },
   { id: '120000', name: '天津市', code: 'TJ', lng: 117.2009, lat: 39.0842 },
   { id: '130000', name: '河北省', code: 'HE', lng: 114.5025, lat: 38.0455 },
@@ -498,6 +498,10 @@ export const generateHealthReport = (province: Province, weekOffset: number): He
     return { start: weekStart, end: weekEnd };
   })();
 
+  const totalWells = Math.floor(Math.random() * 100) + 50;
+  const compliantWells = Math.floor(totalWells * (0.6 + Math.random() * 0.35));
+  const complianceRate = Math.round((compliantWells / totalWells) * 1000) / 10;
+
   return {
     id: generateId(),
     reportNo: `BG${format(start, 'yyyyMMdd')}`,
@@ -510,7 +514,13 @@ export const generateHealthReport = (province: Province, weekOffset: number): He
       averageLevel: Math.round((Math.random() * 20 + 10) * 10) / 10,
       yoyChange: Math.round((Math.random() * 20 - 10) * 10) / 10,
       momChange: Math.round((Math.random() * 10 - 5) * 10) / 10,
-      regionalDistribution: [],
+      regionalDistribution: Array.from({ length: 8 }, (_, i) => ({
+        regionId: generateId(),
+        regionName: `${province.name.slice(0, 2)}${['东', '南', '西', '北', '中', '东北', '东南', '西南'][i]}部`,
+        averageLevel: Math.round((Math.random() * 20 + 10) * 10) / 10,
+        yoyChange: Math.round((Math.random() * 20 - 10) * 10) / 10,
+        momChange: Math.round((Math.random() * 10 - 5) * 10) / 10,
+      })),
     },
     subsidenceAnalysis: {
       hotspotRegions: Array.from({ length: 3 }, () => ({
@@ -525,9 +535,9 @@ export const generateHealthReport = (province: Province, weekOffset: number): He
       cumulativeSubsidence: Math.round((Math.random() * 30 + 10) * 100) / 100,
     },
     complianceAnalysis: {
-      totalWells: Math.floor(Math.random() * 100) + 50,
-      compliantWells: Math.floor(Math.random() * 40) + 40,
-      complianceRate: 0,
+      totalWells,
+      compliantWells,
+      complianceRate,
       nonCompliantWells: Array.from({ length: 5 }, (_, i) => ({
         wellId: generateId(),
         wellName: `${province.name.slice(0, 2)}${i + 1}号井`,

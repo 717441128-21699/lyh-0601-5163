@@ -112,11 +112,11 @@ export const parseExcelData = (
 };
 
 export const generateMiningPlanTemplate = (): Blob => {
-  const headers = ['区域编码', '区域名称', '计划开采量(万m³)', '备注'];
+  const headers = ['行政区划代码', '行政区划名称', '计划开采量(万m³)', '含水层类型'];
   const sampleData = [
-    ['110000', '北京市', 25000, '示例数据'],
-    ['120000', '天津市', 18000, '示例数据'],
-    ['130000', '河北省', 45000, '示例数据'],
+    ['110000', '北京市', 25000, '潜水含水层'],
+    ['120000', '天津市', 18000, '承压含水层'],
+    ['130000', '河北省', 45000, '潜水含水层'],
   ];
 
   const wsData = [headers, ...sampleData];

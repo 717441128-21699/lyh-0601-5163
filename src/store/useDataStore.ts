@@ -54,6 +54,7 @@ interface DataState {
   }) => Promise<void>;
   generateHealthReport: () => Promise<HealthReport>;
   uploadMiningPlan: (data: any[]) => Promise<MiningPlan>;
+  submitMiningPlan: (id: string) => Promise<MiningPlan>;
   clearError: () => void;
 }
 
@@ -230,6 +231,21 @@ export const useDataStore = create<DataState>((set, get) => ({
       const plan = await mockApi.mining.uploadMiningPlan(data);
       set((state) => ({
         miningPlans: [plan, ...state.miningPlans],
+        loading: false,
+      }));
+      return plan;
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
+      throw error;
+    }
+  },
+
+  submitMiningPlan: async (id) => {
+    set({ loading: true });
+    try {
+      const plan = await mockApi.mining.submitMiningPlan(id);
+      set((state) => ({
+        miningPlans: state.miningPlans.map((p) => (p.id === id ? plan : p)),
         loading: false,
       }));
       return plan;

@@ -64,6 +64,7 @@ const MiningPlanManagement: React.FC = () => {
     loadProvinces,
     loadMiningPlans,
     uploadMiningPlan,
+    submitMiningPlan,
   } = useDataStore();
 
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -113,6 +114,10 @@ const MiningPlanManagement: React.FC = () => {
   const filteredPlans = useMemo(() => {
     let plans = miningPlans;
 
+    if (!isNational && dataScope.provinceIds.length > 0) {
+      plans = plans.filter((p) => dataScope.provinceIds.includes(p.provinceId));
+    }
+
     if (searchKeyword) {
       const keyword = searchKeyword.toLowerCase();
       plans = plans.filter(
@@ -127,7 +132,7 @@ const MiningPlanManagement: React.FC = () => {
     }
 
     return plans;
-  }, [miningPlans, searchKeyword, statusFilter]);
+  }, [miningPlans, searchKeyword, statusFilter, isNational, dataScope]);
 
   const handleFileChange = async (file: File) => {
     if (!file) return;
@@ -206,7 +211,7 @@ const MiningPlanManagement: React.FC = () => {
     if (!planToSubmit) return;
 
     try {
-      await useDataStore.getState().uploadMiningPlan([]);
+      await submitMiningPlan(planToSubmit.id);
       setShowConfirmModal(false);
       setPlanToSubmit(null);
       loadMiningPlans(selectedYear, selectedProvince);

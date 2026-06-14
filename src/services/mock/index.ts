@@ -12,6 +12,8 @@ import {
   generateMiningPlan,
   generateHealthReport,
   generateUsers,
+  generateId,
+  provincesData,
 } from './dataGenerator';
 import type {
   Province,
@@ -80,6 +82,7 @@ export const mockApi = {
       if (!user || password !== '123456') {
         throw new Error('用户名或密码错误');
       }
+      localStorage.setItem('mock_user_id', user.id);
       return {
         token: 'mock_token_' + Date.now(),
         user,
@@ -88,12 +91,15 @@ export const mockApi = {
     },
     logout: async (): Promise<void> => {
       await delay(300);
+      localStorage.removeItem('mock_user_id');
     },
     getCurrentUser: async (): Promise<User | null> => {
       await delay(300);
       const token = localStorage.getItem('token');
-      if (!token) return null;
-      return users[0];
+      const userId = localStorage.getItem('mock_user_id');
+      if (!token || !userId) return null;
+      const user = users.find(u => u.id === userId);
+      return user || users[0];
     },
   },
 
@@ -352,8 +358,89 @@ export const mockApi = {
     },
     uploadMiningPlan: async (data: any[]): Promise<MiningPlan> => {
       await delay(1000);
-      const province = provinces[Math.floor(Math.random() * provinces.length)];
-      const plan = generateMiningPlan(province, cities);
+      if (!data || data.length === 0) {
+        throw new Error('上传数据为空');
+      }
+
+      const firstRow = data[0];
+      const provinceId = firstRow.regionCode
+        ? String(firstRow.regionCode).slice(0, 2) + '0000'
+        : provinces[0].id;
+      const province = provinces.find(p => p.id === provinceId) || provinces[0];
+      const year = new Date().getFullYear();
+
+      const regionalPlans = data.map((row: any) => {
+        const cityId = row.regionCode || String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
+        const cityName = row.regionName || '未知区域';
+        const planned = Number(row.plannedExtraction) || Math.floor(Math.random() * 50000) + 10000;
+        const allowable = Math.floor(planned / (0.9 + Math.random() * 0.3));
+        return {
+          regionId: cityId,
+          regionName: cityName,
+          plannedExtraction: planned,
+          allowableExtraction: allowable,
+          predictedRisk: (planned > allowable * 1.1 ? 'high' : planned > allowable ? 'medium' : 'low') as 'low' | 'medium' | 'high',
+        };
+      });
+
+      const totalExtraction = regionalPlans.reduce((sum: number, r: any) => sum + r.plannedExtraction, 0);
+      const totalAllowable = regionalPlans.reduce((sum: number, r: any) => sum + r.allowableExtraction, 0);
+
+      const riskPrediction = Array.from({ length: 12 }, (_, i) => {
+        const monthFactor = 0.8 + Math.sin((i / 12) * Math.PI * 2) * 0.2;
+        const predicted = Math.floor((totalExtraction / 12) * monthFactor * (0.9 + Math.random() * 0.2));
+        const allowable = Math.floor(totalAllowable / 12);
+        return {
+          month: `${year}-${String(i + 1).padStart(2, '0')}`,
+          predictedExtraction: predicted,
+          allowableExtraction: allowable,
+          riskLevel: (predicted > allowable * 1.2 ? 'high' : predicted > allowable ? 'medium' : 'low') as 'low' | 'medium' | 'high',
+          overexploitationAmount: Math.max(0, predicted - allowable),
+        };
+      });
+
+      const highRiskRegions = regionalPlans.filter((r: any) => r.predictedRisk === 'high');
+      const targetRegions = highRiskRegions.slice(0, 3).map((r: any) => ({
+        regionId: r.regionId,
+        regionName: r.regionName,
+        currentExtraction: r.plannedExtraction,
+        suggestedReduction: Math.floor(r.plannedExtraction * 0.15),
+        reason: `该区域${r.predictedRisk === 'high' ? '超采风险较高' : '已接近开采红线'}，建议压采${Math.floor(r.plannedExtraction * 0.15)}万m³`,
+      }));
+
+      const rechargeWells = Array.from({ length: 5 }, (_, i) => {
+        const provData = provincesData.find((p: any) => p.id === province.id) || provincesData[0];
+        return {
+          wellNo: `HG${String(i + 1).padStart(4, '0')}`,
+          name: `${province.name}回灌${i + 1}号井`,
+          longitude: provData.lng + (Math.random() - 0.5) * 3,
+          latitude: provData.lat + (Math.random() - 0.5) * 3,
+          suggestedRechargeAmount: Math.floor(Math.random() * 5000) + 2000,
+          aquifer: firstRow.aquifer || '潜水含水层',
+          priority: i + 1,
+        };
+      });
+
+      const plan: MiningPlan = {
+        id: generateId(),
+        planNo: `KH${year}${province.code || province.id}`,
+        year,
+        provinceId: province.id,
+        provinceName: province.name,
+        totalExtraction,
+        regionalPlans,
+        status: 'draft',
+        riskPrediction,
+        optimizationSuggestion: {
+          targetRegions,
+          rechargeWells,
+          totalReductionTarget: targetRegions.reduce((sum: number, r: any) => sum + r.suggestedReduction, 0),
+          estimatedEffect: `实施后预计可降低超采率${Math.floor(Math.random() * 15 + 10)}个百分点，有效缓解地面沉降趋势。`,
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
       miningPlans.push(plan);
       return plan;
     },
@@ -404,18 +491,19 @@ export const mockApi = {
       await delay(400);
       const report = healthReports.find(r => r.id === id);
       if (!report) throw new Error('Report not found');
-      report.complianceAnalysis.complianceRate = Math.round(
-        (report.complianceAnalysis.compliantWells / report.complianceAnalysis.totalWells) * 1000
-      ) / 10;
       return report;
     },
     generateReport: async (): Promise<HealthReport> => {
       await delay(1500);
-      const province = provinces[0];
+      const userId = localStorage.getItem('mock_user_id');
+      const currentUser = users.find(u => u.id === userId);
+      let province: Province;
+      if (currentUser?.provinceId) {
+        province = provinces.find(p => p.id === currentUser.provinceId) || provinces[0];
+      } else {
+        province = provinces[Math.floor(Math.random() * provinces.length)];
+      }
       const report = generateHealthReport(province, 0);
-      report.complianceAnalysis.complianceRate = Math.round(
-        (report.complianceAnalysis.compliantWells / report.complianceAnalysis.totalWells) * 1000
-      ) / 10;
       healthReports.unshift(report);
       return report;
     },
@@ -437,8 +525,9 @@ export const mockApi = {
       users.push(newUser);
       return newUser;
     },
-    updateUser: async (id: string, userData: Partial<User>): Promise<User> => {
+    updateUser: async (data: { id: string } & Partial<User>): Promise<User> => {
       await delay(500);
+      const { id, ...userData } = data;
       const index = users.findIndex(u => u.id === id);
       if (index === -1) throw new Error('User not found');
       users[index] = { ...users[index], ...userData, updatedAt: new Date().toISOString() };

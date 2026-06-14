@@ -111,6 +111,10 @@ const HealthReportManagement: React.FC = () => {
   const filteredReports = useMemo(() => {
     let reports = healthReports;
 
+    if (!isNational && dataScope.provinceIds.length > 0) {
+      reports = reports.filter((r) => dataScope.provinceIds.includes(r.regionId));
+    }
+
     if (searchKeyword) {
       const keyword = searchKeyword.toLowerCase();
       reports = reports.filter(
@@ -123,17 +127,11 @@ const HealthReportManagement: React.FC = () => {
     return reports.sort(
       (a, b) => new Date(b.periodStart).getTime() - new Date(a.periodStart).getTime()
     );
-  }, [healthReports, searchKeyword]);
+  }, [healthReports, searchKeyword, isNational, dataScope]);
 
   const handleViewDetail = async (report: HealthReport) => {
-    try {
-      const fullReport = await useDataStore.getState().generateHealthReport();
-      setSelectedReport({ ...report, ...fullReport });
-      setShowDetailDrawer(true);
-    } catch (error) {
-      setSelectedReport(report);
-      setShowDetailDrawer(true);
-    }
+    setSelectedReport(report);
+    setShowDetailDrawer(true);
   };
 
   const handleGenerateReport = async () => {
